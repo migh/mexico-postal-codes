@@ -4,6 +4,8 @@ import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.SparkConf
 
+import scala.collection.mutable.ArrayBuffer
+
 object PostalCodes {
   def main(args: Array[String]) {
     val conf = new SparkConf().setAppName("PostalCodes")
@@ -36,11 +38,18 @@ object PostalCodes {
       )
     })
 
-    val mapStep = tokenizedFileData.map( pCode => pCode("City"))
-    // val postalCodes = tokenizedFileData.map( pCode => (pCode("PostalCode"), pCode("Municipality"), pCode("Name"), pCode("State")))
-    val states = mapStep.distinct()
-    // val codesByState = postalCodes.aggregateByKey( 0, pcElem => pcElem._2 )
+    val cityPostalCode = tokenizedFileData.map( pCode => (pCode("City"), pCode("PostalCode")) )
 
-    states.saveAsTextFile("file:///C:/Users/migsar.santiesteban/playground/spark/postal-codes/Results")
+    val postalCodesByCity = cityPostalCode.aggregateByKey(ArrayBuffer[String]())(
+        (acc, value) => (acc += value),
+        (acc1, acc2) => (acc1 ++ acc2)
+    )
+    .map( (item) => (item._1, item._2.length) )
+    .sortBy(
+        (item) => (item._2),
+        false
+    )
+
+    postalCodesByCity.saveAsTextFile("file:///C:/Users/migsar.santiesteban/playground/spark/postal-codes/Results")
   }
 }
